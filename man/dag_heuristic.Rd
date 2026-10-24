@@ -4,7 +4,15 @@
 \alias{dag_heuristic}
 \title{Heuristic BIC search over orderings (larger k)}
 \usage{
-dag_heuristic(X, lags, E = NULL, restarts = 3, seed = 1)
+dag_heuristic(
+  X,
+  lags,
+  E = NULL,
+  restarts = 3,
+  seed = 1,
+  restart = "random",
+  ebic_gamma = 0
+)
 }
 \arguments{
 \item{X}{n by k matrix.}
@@ -13,11 +21,15 @@ dag_heuristic(X, lags, E = NULL, restarts = 3, seed = 1)
 
 \item{E}{optional symmetric candidate graph (CIG) restricting the parents.}
 
-\item{restarts}{number of random starts.}
+\item{restarts}{number of further starts.}
 
 \item{seed}{seed (the caller's random stream is preserved).}
+
+\item{restart}{\code{"random"} (default) or \code{"perturb"} (iterated local search from the incumbent).}
+
+\item{ebic_gamma}{extended-BIC parameter (0 = BIC); penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}.}
 }
 \description{
-Local search over orderings from a greedy and several random starts. It is a heuristic: it returns a local
+Local search over orderings from a greedy start and several further starts (random orders, or, with \code{restart = "perturb"}, perturbations of the incumbent). Node problems are memoised on the sorted predecessor set. It is a heuristic: it returns a local
 optimum of the BIC and the consistency result for the exact search does not apply to it.
 }

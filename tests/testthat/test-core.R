@@ -67,3 +67,34 @@ test_that("cig_estimate feeds gmsvar(cig=) and matches the screen shortcut", {
   f1 <- gmsvar(X, p = 2, cig = E); f2 <- gmsvar(X, p = 2, screen = "GMTS-ua", alpha = 0.3)
   expect_equal(f1$parents, f2$parents)
 })
+
+test_that("extended BIC selects no more parents than the BIC", {
+  set.seed(3); X <- simulate_svar(svar_example(), 400)
+  a <- dag_exact(X, 2); b <- dag_exact(X, 2, ebic_gamma = 1)
+  expect_lte(sum(lengths(b$parents)), sum(lengths(a$parents)))
+  h <- dag_heuristic(X, 2, ebic_gamma = 0.5, restarts = 0)
+  expect_equal(length(h$parents), 3)
+})
+
+test_that("gmsvar defaults: extended BIC, no screen", {
+  set.seed(4); X <- simulate_svar(svar_example(), 400); f <- gmsvar(X, p = 2)
+  expect_equal(f$ebic_gamma, 0.5); expect_equal(f$screen, "none"); expect_null(f$cig)
+})
+
+test_that("input checks", {
+  set.seed(5); X <- simulate_svar(svar_example(), 200)
+  Y <- X; Y[3, 1] <- NA
+  expect_error(gmsvar(Y, p = 2), "missing values")
+  expect_error(gmsvar(X, ic = "XYZ"))
+  m <- random_svar(12, 2, seed = 3); Z <- simulate_svar(m, 30)
+  expect_error(gmsvar(Z, p = 2, screen = "GMTS-ua"), "more observations")
+  expect_warning(gmsvar(Z, p = 2), "not reliable")
+  expect_silent(f <- gmsvar(Z, p = 2, screen = "NW"))
+})
+
+test_that("search = 'auto' is exact up to k = 10 and heuristic above", {
+  d8 <- random_svar(k = 8, p = 1, seed = 8001); set.seed(1); X8 <- simulate_svar(d8, 300)
+  expect_equal(gmsvar(X8, p = 1)$search, "exact")
+  d11 <- random_svar(k = 11, p = 1, seed = 11001); set.seed(1); X11 <- simulate_svar(d11, 300)
+  expect_equal(gmsvar(X11, p = 1)$search, "heuristic")
+})

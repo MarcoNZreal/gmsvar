@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{gmsvar}
 \alias{gmsvar}
-\title{End-to-end pipeline: from the data to the estimated SVAR}
+\title{Two-stage pipeline: from the data to the estimated SVAR}
 \usage{
 gmsvar(
   X,
@@ -12,7 +12,9 @@ gmsvar(
   cig = NULL,
   screen = "none",
   alpha = 0.05,
-  search = "auto"
+  search = "auto",
+  restarts = 3,
+  ebic_gamma = 0.5
 )
 }
 \arguments{
@@ -27,12 +29,16 @@ gmsvar(
 \item{cig}{optional initial CIG: a logical (or 0/1) matrix of dimension k(p+1) by k(p+1) over the window (X_t, X_{t-1}, ..., X_{t-p}),
 or k by k, in which case it constrains the contemporaneous pairs only and every lagged pair is allowed. Only pairs involving a current variable matter.}
 
-\item{screen}{shortcut for \code{cig_estimate}: \code{"none"} (default), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
+\item{screen}{stage 1 of the two-stage method, a shortcut for \code{cig_estimate}: \code{"none"} (default), \code{"auto"} (the rule of version 0.3.0: none if k <= 20, otherwise \code{"ANW"}), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
 (\code{"AGL"}, \code{"ANW"}, \code{"NW"}). Liberal screens are recommended; conservative ones can cost accuracy. Ignored if \code{cig} is given.}
 
 \item{alpha}{level for the test-based screens.}
 
-\item{search}{\code{"auto"} (exact if k <= 7, else heuristic), \code{"exact"} or \code{"heuristic"}.}
+\item{search}{\code{"auto"} (exact if k <= 10, else heuristic; the exact search takes about 1 s at k = 10 with two lags and 8 s with six), \code{"exact"} or \code{"heuristic"}.}
+
+\item{restarts}{number of further starts of the heuristic search (0 = greedy start and local search only).}
+
+\item{ebic_gamma}{extended-BIC parameter: the penalty per parent is \code{log(N) + 2 * ebic_gamma * log(m - 1)}, with m the window dimension; 0 gives the BIC. The default 0.5 was about as accurate as the BIC for k <= 7 and much more accurate for k >= 20 in the accompanying simulations.}
 }
 \value{
 an object of class \code{gmsvar}: \code{p}, \code{order} (lag-order criteria, if used), \code{cig} (the initial graph used, or \code{NULL}),
@@ -41,14 +47,18 @@ an object of class \code{gmsvar}: \code{p}, \code{order} (lag-order criteria, if
 }
 \description{
 Starting from the data alone, chooses the lag order (unless \code{p} is given), searches for the contemporaneous DAG over orderings
-by the BIC (exact dynamic programme for small k, heuristic otherwise), derives the arrows that are common to the Markov equivalence
+by the extended BIC (exact dynamic programme for small k, heuristic otherwise), derives the arrows that are common to the Markov equivalence
 class under the time ordering, and estimates the resulting structural VAR by least squares equation by equation. An initial
 conditional independence graph (CIG) of the window is an optional restriction (\code{cig}, e.g. from \code{cig_estimate}).
 }
 \details{
-The default uses no CIG: the search considers every pair, which was the most accurate option in the accompanying simulations
-whenever it is feasible. A CIG can be supplied through \code{cig} (your own, or from \code{cig_estimate}); the argument \code{screen}
-is a shortcut for \code{cig = cig_estimate(X, p, screen, alpha)}. A supplied \code{cig} overrides \code{screen}.
+The method has two stages. Stage 1 (optional) screens the window for a sparse conditional independence graph that restricts the candidate parents;
+stage 2 searches over orderings with the extended BIC (\code{ebic_gamma = 0.5}). By default stage 1 is skipped (\code{screen = "none"}): in the
+accompanying simulations the extended BIC without a screen was as accurate as, or more accurate than, the BIC with or without the adaptive
+node-wise lasso screen at every size studied (k = 3 to 50); the BIC overfitted from k = 15. For very large systems in which the window
+dimension k(p+1) approaches the number of observations, a liberal lasso screen (\code{screen = "NW"}) saves much computation, and when it
+exceeds the number of observations only a lasso screen can be used. A CIG can also be supplied through \code{cig} (your own, or from \code{cig_estimate});
+\code{screen} is a shortcut for \code{cig = cig_estimate(X, p, screen, alpha)}. A supplied \code{cig} overrides \code{screen}.
 }
 \examples{
 set.seed(1); X <- simulate_svar(svar_example(), 600)

@@ -4,7 +4,7 @@
 \alias{dag_exact}
 \title{Exact BIC search for the contemporaneous DAG}
 \usage{
-dag_exact(X, lags, E = NULL)
+dag_exact(X, lags, E = NULL, ebic_gamma = 0)
 }
 \arguments{
 \item{X}{n by k matrix.}
@@ -12,10 +12,12 @@ dag_exact(X, lags, E = NULL)
 \item{lags}{lag order.}
 
 \item{E}{optional symmetric candidate graph (CIG) restricting the parents.}
+
+\item{ebic_gamma}{extended-BIC parameter (0 = BIC); penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}.}
 }
 \value{
 list with \code{parents} (parents of each current variable, window indices) and \code{score}.
 }
 \description{
-Dynamic programme over subsets of current variables; feasible for about k <= 8.
+Dynamic programme over subsets of current variables; the cost doubles with each added current variable (about 1 s at k = 10 and 8 s at k = 12 on one core).
 }

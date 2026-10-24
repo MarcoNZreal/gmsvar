@@ -1,17 +1,21 @@
 Package: gmsvar
 Type: Package
-Title: Graphical Modelling and DAG Recovery for Structural Vector Autoregressions
-Version: 0.2.0
+Title: Graphical Identification of Structural Vector Autoregressions
+Version: 0.4.0
 Authors@R: c(person("Marco", "Reale", role = c("aut", "cre"), email = "marco.reale@canterbury.ac.nz"),
              person("Anna", "Lin", role = "aut"),
              person("Granville", "Tunnicliffe Wilson", role = "aut"),
              person("Chris", "Price", role = "aut"),
              person("Blair", "Robertson", role = "aut"))
-Description: Selects the lag order of a vector autoregression by information criteria, estimates the conditional
-    independence graph of the window of current and lagged variables from partial-correlation tests or penalised
-    screens, and recovers a directed acyclic graph for the contemporaneous structure by a BIC search over orderings
-    (exact for small systems, heuristic for larger ones). Includes tools for simulating sparse structural VARs and
-    scoring estimated graphs.
+Description: Starting from the data, selects the lag order of a vector autoregression by information criteria,
+    recovers a directed acyclic graph for the contemporaneous structure by an extended-BIC search over orderings (exact for
+    small systems, heuristic for larger ones), identifies the arrows common to the Markov equivalence class under the time
+    ordering, and estimates the structural VAR. An optional first stage restricts the search to a sparse conditional
+    independence graph of the window of current and lagged variables (partial-correlation tests or penalised screens),
+    estimated or supplied by the user, to impose prior knowledge or save computation. Includes impulse responses, a bootstrap of edge stability, and tools for simulating sparse
+    structural VARs and scoring estimated graphs.
+URL: https://github.com/MarcoNZreal/gmsvar
+BugReports: https://github.com/MarcoNZreal/gmsvar/issues
 License: GPL (>= 2)
 Encoding: UTF-8
 Roxygen: list(markdown = FALSE)
@@ -19,3 +23,11 @@ RoxygenNote: 7.3.2
 Imports: stats, utils, graphics
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
+NeedsCompilation: no
+Packaged: 2026-10-24 21:08:22 UTC; root
+Author: Marco Reale [aut, cre],
+  Anna Lin [aut],
+  Granville Tunnicliffe Wilson [aut],
+  Chris Price [aut],
+  Blair Robertson [aut]
+Maintainer: Marco Reale <marco.reale@canterbury.ac.nz>

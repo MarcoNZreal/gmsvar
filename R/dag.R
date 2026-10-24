@@ -35,8 +35,9 @@ best_parents <- function(Sg, i, cand, nv) {
 
 # E: m x m logical candidate adjacency (CIG); E = NULL means no restriction.
 # Returns list(parents = list over current nodes 1..k, score).
-learn_dag <- function(X, lags, k, E = NULL) {
+learn_dag <- function(X, lags, k, E = NULL, ebic_gamma = 0) {
   G <- window_mat(X, lags); nv <- nrow(G); m <- ncol(G)
+  pen <- log(nv) + 2 * ebic_gamma * log(m - 1)   # BIC if ebic_gamma = 0, otherwise extended BIC with per-parent penalty
   Sg <- cov(G) * (nv - 1) / nv                    # ML covariance (ddof = 0)
   if (is.null(E)) E <- matrix(TRUE, m, m)
   E <- E | t(E)
@@ -46,7 +47,7 @@ learn_dag <- function(X, lags, k, E = NULL) {
     cand <- c(allowed, lagged); cand <- cand[cand != i & E[i, cand]]
     key <- paste0(i, ":", paste(cand, collapse = ","))
     v <- memo[[key]]
-    if (is.null(v)) { v <- best_parents(Sg, i, cand, nv); memo[[key]] <- v }
+    if (is.null(v)) { v <- fast_best_parents(Sg, i, cand, nv, pen); memo[[key]] <- v }   # O(q^3) backward elimination by inverse downdating (best_parents() is the slow O(q^5) reference)
     v
   }
   full <- bitwShiftL(1L, k) - 1L

@@ -1,6 +1,6 @@
 #' gmsvar: graphical modelling and DAG recovery for structural VARs
 #'
-#' BIC search over contemporaneous orderings (exact for small k, heuristic otherwise) from the data, the equivalence class under the
+#' Extended-BIC search over contemporaneous orderings (exact for small k, heuristic otherwise) from the data, the equivalence class under the
 #' time ordering, and the estimated SVAR; window partial-correlation graphs (CIGs), edge-selection rules and penalised screens are optional tools.
 #' @keywords internal
 #' @importFrom stats cor cov cov2cor pnorm pt rbinom rnorm rt runif coef setNames
@@ -52,7 +52,11 @@ window_matrix <- function(X, lags) window_mat(as.matrix(X), lags)
 #' @param lags lag order.
 #' @return list with \code{R} (partial correlations), \code{t}, \code{pt} (t-test p-values), \code{pz} (Fisher-z p-values), \code{nv}, \code{m}.
 #' @export
-cig_stats <- function(X, lags) cigts_stats(as.matrix(X), lags)
+cig_stats <- function(X, lags) {
+  X <- as.matrix(X); m <- ncol(X) * (lags + 1); N <- nrow(X) - lags
+  if (m >= N - 1) stop(sprintf("partial correlations of the window need more observations than window variables (N = %d, m = %d)", N, m))
+  cigts_stats(X, lags)
+}
 
 #' Select CIG edges from partial-correlation tests
 #'
@@ -77,23 +81,25 @@ cig_screen <- function(X, lags, method = c("ANW", "AGL", "NW")) screen_graph(as.
 
 #' Exact BIC search for the contemporaneous DAG
 #'
-#' Dynamic programme over subsets of current variables; feasible for about k <= 8.
+#' Dynamic programme over subsets of current variables; the cost doubles with each added current variable (about 1 s at k = 10 and 8 s at k = 12 on one core).
 #' @param X n by k matrix.
 #' @param lags lag order.
 #' @param E optional symmetric candidate graph (CIG) restricting the parents.
+#' @param ebic_gamma extended-BIC parameter (0 = BIC); penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}.
 #' @return list with \code{parents} (parents of each current variable, window indices) and \code{score}.
 #' @export
-dag_exact <- function(X, lags, E = NULL) learn_dag(as.matrix(X), lags, ncol(X), E)
+dag_exact <- function(X, lags, E = NULL, ebic_gamma = 0) learn_dag(as.matrix(X), lags, ncol(X), E, ebic_gamma = ebic_gamma)
 
 #' Heuristic BIC search over orderings (larger k)
 #'
-#' Local search over orderings from a greedy and several random starts. It is a heuristic: it returns a local
+#' Local search over orderings from a greedy start and several further starts (random orders, or, with \code{restart = "perturb"}, perturbations of the incumbent). Node problems are memoised on the sorted predecessor set. It is a heuristic: it returns a local
 #' optimum of the BIC and the consistency result for the exact search does not apply to it.
 #' @inheritParams dag_exact
-#' @param restarts number of random starts.
+#' @param restarts number of further starts.
+#' @param restart \code{"random"} (default) or \code{"perturb"} (iterated local search from the incumbent).
 #' @param seed seed (the caller's random stream is preserved).
 #' @export
-dag_heuristic <- function(X, lags, E = NULL, restarts = 3, seed = 1) learn_dag_heur(as.matrix(X), lags, ncol(X), E, restarts, seed)
+dag_heuristic <- function(X, lags, E = NULL, restarts = 3, seed = 1, restart = "random", ebic_gamma = 0) learn_dag_heur(as.matrix(X), lags, ncol(X), E, restarts, seed, restart = restart, ebic_gamma = ebic_gamma)
 
 #' Parent sets of a model and DAG error metrics
 #' @param m an SVAR list.
@@ -113,8 +119,8 @@ dag_compare <- function(est, truth, k, p) dag_metrics(est, truth, k, k * (p + 1)
 #'
 #' Convenience wrapper that returns a logical k(p+1) by k(p+1) conditional independence graph of the window, by a partial-correlation
 #' test rule (\code{cig_select}) or a penalised screen (\code{cig_screen}). Pass the result to \code{gmsvar(X, p, cig = ...)} to
-#' restrict the DAG search. The accompanying simulations found that the unrestricted search was the most accurate; a CIG is useful
-#' to impose prior knowledge, to inspect the data, or (liberal screens only) to speed up the search when k is large.
+#' restrict the DAG search. In the accompanying simulations no screen improved on the unrestricted extended-BIC search (the default of \code{gmsvar}); a CIG is useful
+#' to impose prior knowledge, to inspect the data and to save computation.
 #' @param X n by k matrix.
 #' @param p lag order.
 #' @param method a rule of \code{cig_select} (\code{"GMTS-ua"}, \code{"GMTS-Bonf"}, \code{"GMTS-Sidak"}, \code{"SIN"}, \code{"BH"}, \code{"BIC"})
@@ -131,26 +137,32 @@ cig_estimate <- function(X, p, method = "GMTS-ua", alpha = 0.05) {
   if (method %in% c("AGL", "ANW", "NW")) cig_screen(X, p, method) else cig_select(cig_stats(X, p), k, p, method, alpha)
 }
 
-#' End-to-end pipeline: from the data to the estimated SVAR
+#' Two-stage pipeline: from the data to the estimated SVAR
 #'
 #' Starting from the data alone, chooses the lag order (unless \code{p} is given), searches for the contemporaneous DAG over orderings
-#' by the BIC (exact dynamic programme for small k, heuristic otherwise), derives the arrows that are common to the Markov equivalence
+#' by the extended BIC (exact dynamic programme for small k, heuristic otherwise), derives the arrows that are common to the Markov equivalence
 #' class under the time ordering, and estimates the resulting structural VAR by least squares equation by equation. An initial
 #' conditional independence graph (CIG) of the window is an optional restriction (\code{cig}, e.g. from \code{cig_estimate}).
 #'
-#' The default uses no CIG: the search considers every pair, which was the most accurate option in the accompanying simulations
-#' whenever it is feasible. A CIG can be supplied through \code{cig} (your own, or from \code{cig_estimate}); the argument \code{screen}
-#' is a shortcut for \code{cig = cig_estimate(X, p, screen, alpha)}. A supplied \code{cig} overrides \code{screen}.
+#' The method has two stages. Stage 1 (optional) screens the window for a sparse conditional independence graph that restricts the candidate parents;
+#' stage 2 searches over orderings with the extended BIC (\code{ebic_gamma = 0.5}). By default stage 1 is skipped (\code{screen = "none"}): in the
+#' accompanying simulations the extended BIC without a screen was as accurate as, or more accurate than, the BIC with or without the adaptive
+#' node-wise lasso screen at every size studied (k = 3 to 50); the BIC overfitted from k = 15. For very large systems in which the window
+#' dimension k(p+1) approaches the number of observations, a liberal lasso screen (\code{screen = "NW"}) saves much computation, and when it
+#' exceeds the number of observations only a lasso screen can be used. A CIG can also be supplied through \code{cig} (your own, or from \code{cig_estimate});
+#' \code{screen} is a shortcut for \code{cig = cig_estimate(X, p, screen, alpha)}. A supplied \code{cig} overrides \code{screen}.
 #' @param X n by k matrix (or data frame) of series; column names are used as labels.
 #' @param p lag order, or \code{NULL} to choose it with \code{ic} (or from the dimension of \code{cig}).
 #' @param pmax largest order considered.
 #' @param ic \code{"AIC"} (default), \code{"BIC"} or \code{"HQ"}. In the accompanying simulations BIC and HQ underfitted when higher-order lags were weak, which hurt the graph; AIC overfitted slightly at a small cost.
 #' @param cig optional initial CIG: a logical (or 0/1) matrix of dimension k(p+1) by k(p+1) over the window (X_t, X_{t-1}, ..., X_{t-p}),
 #'   or k by k, in which case it constrains the contemporaneous pairs only and every lagged pair is allowed. Only pairs involving a current variable matter.
-#' @param screen shortcut for \code{cig_estimate}: \code{"none"} (default), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
+#' @param screen stage 1 of the two-stage method, a shortcut for \code{cig_estimate}: \code{"none"} (default), \code{"auto"} (the rule of version 0.3.0: none if k <= 20, otherwise \code{"ANW"}), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
 #'   (\code{"AGL"}, \code{"ANW"}, \code{"NW"}). Liberal screens are recommended; conservative ones can cost accuracy. Ignored if \code{cig} is given.
 #' @param alpha level for the test-based screens.
-#' @param search \code{"auto"} (exact if k <= 7, else heuristic), \code{"exact"} or \code{"heuristic"}.
+#' @param search \code{"auto"} (exact if k <= 10, else heuristic; the exact search takes about 1 s at k = 10 with two lags and 8 s with six), \code{"exact"} or \code{"heuristic"}.
+#' @param restarts number of further starts of the heuristic search (0 = greedy start and local search only).
+#' @param ebic_gamma extended-BIC parameter: the penalty per parent is \code{log(N) + 2 * ebic_gamma * log(m - 1)}, with m the window dimension; 0 gives the BIC. The default 0.5 was about as accurate as the BIC for k <= 7 and much more accurate for k >= 20 in the accompanying simulations.
 #' @return an object of class \code{gmsvar}: \code{p}, \code{order} (lag-order criteria, if used), \code{cig} (the initial graph used, or \code{NULL}),
 #'   \code{parents}, \code{score}, \code{svar} (estimated SVAR, see \code{svar_estimate}), \code{compelled} (k by k logical: contemporaneous
 #'   arrows common to every DAG in the equivalence class), \code{names}.
@@ -160,9 +172,14 @@ cig_estimate <- function(X, p, method = "GMTS-ua", alpha = 0.05) {
 #' fit$p; fit$parents
 #' summary(fit)
 #' @export
-gmsvar <- function(X, p = NULL, pmax = 6, ic = "AIC", cig = NULL, screen = "none", alpha = 0.05, search = "auto") {
+gmsvar <- function(X, p = NULL, pmax = 6, ic = "AIC", cig = NULL, screen = "none", alpha = 0.05, search = "auto", restarts = 3, ebic_gamma = 0.5) {
+  ic <- match.arg(ic, c("AIC", "BIC", "HQ")); search <- match.arg(search, c("auto", "exact", "heuristic"))
   nm <- if (!is.null(colnames(X))) colnames(X) else paste0("X", seq_len(ncol(X)))
-  X <- scale(as.matrix(X), scale = FALSE); k <- ncol(X); ord <- NULL
+  X <- as.matrix(X)
+  if (!is.numeric(X)) stop("X must be numeric")
+  if (anyNA(X)) stop("X contains missing values; remove or impute them first")
+  X <- scale(X, scale = FALSE); k <- ncol(X); ord <- NULL
+  if (identical(screen, "auto")) screen <- if (k <= 20) "none" else "ANW"   # legacy rule of version 0.3.0
   if (!is.null(cig)) {
     cig <- as.matrix(cig); d <- nrow(cig)
     if (nrow(cig) != ncol(cig)) stop("cig must be a square matrix")
@@ -172,16 +189,21 @@ gmsvar <- function(X, p = NULL, pmax = 6, ic = "AIC", cig = NULL, screen = "none
   } else if (is.null(p)) {
     ord <- var_order(X, pmax); p <- ord[[ic]]; if (p < 1) stop("selected order is 0; supply p")
   }
-  E <- NULL; m <- k * (p + 1)
+  E <- NULL; m <- k * (p + 1); N <- nrow(X) - p
+  test_screen <- is.null(cig) && !(screen %in% c("none", "AGL", "ANW", "NW"))
+  if (test_screen && m >= N - 1)
+    stop(sprintf("partial-correlation screens need more observations than window variables (N = %d, m = %d); use screen = \"NW\" or \"ANW\"", N, m))
+  if (is.null(cig) && screen == "none" && m - 1 >= N - 1)
+    warning(sprintf("the window has m = %d variables but only N = %d observations: the unscreened search is not reliable; consider a lasso screen (screen = \"NW\")", m, N))
   if (!is.null(cig)) {
     if (nrow(cig) == k && m > k) { E <- matrix(TRUE, m, m); E[seq_len(k), seq_len(k)] <- cig != 0 } else E <- cig != 0
     E <- E | t(E)
   } else if (screen %in% c("AGL", "ANW", "NW")) E <- cig_screen(X, p, screen)
   else if (screen != "none") E <- cig_select(cig_stats(X, p), k, p, screen, alpha)
-  if (search == "auto") search <- if (k <= 7) "exact" else "heuristic"
-  fit <- if (search == "exact") dag_exact(X, p, E) else dag_heuristic(X, p, E)
+  if (search == "auto") search <- if (k <= 10) "exact" else "heuristic"
+  fit <- if (search == "exact") dag_exact(X, p, E, ebic_gamma = ebic_gamma) else dag_heuristic(X, p, E, restarts = restarts, ebic_gamma = ebic_gamma)
   out <- list(p = p, order = ord, cig = E, parents = fit$parents, score = fit$score, k = k, names = nm,
-              screen = if (is.null(cig)) screen else "user cig", search = search, cig_user = !is.null(cig), alpha = alpha)
+              screen = if (is.null(cig)) screen else "user cig", search = search, cig_user = !is.null(cig), alpha = alpha, ebic_gamma = ebic_gamma, restarts = restarts)
   out$svar <- svar_estimate(X, p, fit$parents, nm)
   out$compelled <- cpdag_cc(fit$parents, k, k * (p + 1))
   structure(out, class = "gmsvar")

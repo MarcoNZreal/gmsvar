@@ -66,8 +66,9 @@ summary.gmsvar <- function(object, ...) {
 #' @export
 print.summary.gmsvar <- function(x, digits = 3, ...) {
   f <- x$fit
-  cat(sprintf("Structural VAR(%d) identified by a BIC search over contemporaneous orderings (%s)\n", f$p, f$search))
-  cat(sprintf("n = %d, k = %d; initial CIG: %s; BIC score %.2f\n", f$svar$n, f$k, if (is.null(f$cig)) "none (all pairs allowed)" else f$screen, f$score))
+  crit <- if (is.null(f$ebic_gamma) || f$ebic_gamma == 0) "a BIC" else sprintf("an extended-BIC (gamma = %g)", f$ebic_gamma)
+  cat(sprintf("Structural VAR(%d) identified by %s search over contemporaneous orderings (%s)\n", f$p, crit, f$search))
+  cat(sprintf("n = %d, k = %d; initial CIG: %s; score %.2f\n", f$svar$n, f$k, if (is.null(f$cig)) "none (all pairs allowed)" else f$screen, f$score))
   cat(sprintf("%d contemporaneous edges (%d with orientation common to the equivalence class), %d lagged links\n\n", x$n_contemporaneous, x$n_compelled, x$n_lagged))
   e <- x$edges; e$coef <- round(e$coef, digits); e$se <- round(e$se, digits); e$t <- round(e$t, 2); print(e, row.names = FALSE)
   cat("\nInnovation standard deviations:\n"); print(round(setNames(sqrt(f$svar$sig2), f$names), digits))
@@ -151,7 +152,7 @@ gmsvar_boot <- function(fit, X, B = 200, block = 8, seed = 1) {
   set.seed(seed); dirm <- matrix(0, k, k); adjm <- matrix(0, k, k); adjsum <- matrix(0, k, k); lagm <- replicate(p, matrix(0, k, k), simplify = FALSE)
   for (b in seq_len(B)) {
     st <- sample.int(n - block + 1, ceiling(n / block), replace = TRUE); Xb <- X[unlist(lapply(st, function(s) s:(s + block - 1)))[seq_len(n)], , drop = FALSE]
-    fb <- gmsvar(Xb, p = p, cig = if (fit$cig_user) fit$cig else NULL, screen = if (fit$cig_user) "none" else fit$screen, alpha = fit$alpha, search = fit$search)
+    fb <- gmsvar(Xb, p = p, cig = if (fit$cig_user) fit$cig else NULL, screen = if (fit$cig_user) "none" else fit$screen, alpha = fit$alpha, search = fit$search, ebic_gamma = if (is.null(fit$ebic_gamma)) 0 else fit$ebic_gamma, restarts = if (is.null(fit$restarts)) 3 else fit$restarts)
     for (i in seq_len(k)) for (j in fb$parents[[i]]) { lg <- (j - 1) %/% k; col <- (j - 1) %% k + 1
       if (lg == 0) adjm[col, i] <- adjm[i, col] <- 1 else lagm[[lg]][i, col] <- lagm[[lg]][i, col] + 1 }
     adjsum <- adjsum + adjm; adjm[] <- 0; dirm <- dirm + fb$compelled

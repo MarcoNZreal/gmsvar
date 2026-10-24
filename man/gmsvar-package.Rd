@@ -5,8 +5,16 @@
 \alias{gmsvar-package}
 \title{gmsvar: graphical modelling and DAG recovery for structural VARs}
 \description{
-BIC search over contemporaneous orderings (exact for small k, heuristic otherwise) from the data, the equivalence class under the
+Extended-BIC search over contemporaneous orderings (exact for small k, heuristic otherwise) from the data, the equivalence class under the
 time ordering, and the estimated SVAR; window partial-correlation graphs (CIGs), edge-selection rules and penalised screens are optional tools.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/MarcoNZreal/gmsvar}
+  \item Report bugs at \url{https://github.com/MarcoNZreal/gmsvar/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Marco Reale \email{marco.reale@canterbury.ac.nz}

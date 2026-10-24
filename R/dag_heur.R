@@ -2,10 +2,11 @@
 # Node problems are the same as in the exact DP (backward elimination on BIC from the candidate set, memoised on (i, candidate set));
 # backward elimination uses inverse downdating (O(q^2) per removal) and gives the same answer as best_parents() in dag.R.
 
-fast_best_parents <- function(Sg, i, cand, nv) {
-  P <- cand; q <- length(P); lg <- log(nv)
+fast_best_parents <- function(Sg, i, cand, nv, pen = log(nv)) {
+  P <- cand; q <- length(P); lg <- pen   # penalty per parent: log N (BIC) or log N + 2 gamma log(m - 1) (extended BIC)
   if (q == 0) return(list(par = integer(0), score = nv * log(Sg[i, i])))
-  Om <- tryCatch(solve(Sg[P, P, drop = FALSE]), error = function(e) NULL)
+  if (q >= nv - 1) return(forward_parents(Sg, i, cand, nv, pen))   # more candidates than observations: the full regression is not estimable, select forwards
+  Om <- tryCatch(chol2inv(chol(Sg[P, P, drop = FALSE])), error = function(e) NULL)
   if (is.null(Om)) return(best_parents(Sg, i, cand, nv))
   s <- Sg[P, i]; rss <- Sg[i, i] - sum(s * (Om %*% s))
   if (!is.finite(rss) || rss <= 0) return(list(par = sort(P), score = Inf))
@@ -16,6 +17,7 @@ fast_best_parents <- function(Sg, i, cand, nv) {
     inc <- beta^2 / d                         # increase of RSS when dropping each variable
     jb <- which.min(inc); rss_new <- rss + inc[jb]
     nb <- nv * log(rss_new) + (length(P) - 1) * lg
+    if (!is.finite(nb)) break
     if (nb < cur - 1e-12) {
       oj <- Om[, jb]; Om <- Om[-jb, -jb, drop = FALSE] - tcrossprod(oj[-jb]) / oj[jb]
       P <- P[-jb]; s <- s[-jb]; rss <- rss_new; cur <- nb
@@ -24,18 +26,20 @@ fast_best_parents <- function(Sg, i, cand, nv) {
   list(par = sort(P), score = cur)
 }
 
-learn_dag_heur <- function(X, lags, k, E = NULL, restarts = 3, seed = 1, maxpass = 50) {
+learn_dag_heur <- function(X, lags, k, E = NULL, restarts = 3, seed = 1, maxpass = 50, restart = c("random", "perturb"), strength = max(3L, round(k / 6)), ebic_gamma = 0) {
+  restart <- match.arg(restart)
   G <- window_mat(X, lags); nv <- nrow(G); m <- ncol(G)
+  pen <- log(nv) + 2 * ebic_gamma * log(m - 1)   # extended BIC (Chen and Chen 2008) with the binomial term approximated per parent, so the penalty does not depend on the ordering
   Sg <- cov(G) * (nv - 1) / nv
   if (is.null(E)) E <- matrix(TRUE, m, m)
   E <- E | t(E)
   lagged <- if (m > k) (k + 1):m else integer(0)
-  memo <- new.env(hash = TRUE)
+  memo <- new.env(hash = TRUE); nev <- 0L; nhit <- 0L
   node <- function(i, allowed) {
-    cand <- c(allowed, lagged); cand <- cand[cand != i & E[i, cand]]
+    cand <- c(sort(allowed), lagged); cand <- cand[cand != i & E[i, cand]]   # sorted: the same set reached through different orders hits the same memo entry
     key <- paste0(i, ":", paste(cand, collapse = ","))
     v <- memo[[key]]
-    if (is.null(v)) { v <- fast_best_parents(Sg, i, cand, nv); memo[[key]] <- v }
+    if (is.null(v)) { nev <<- nev + 1L; v <- fast_best_parents(Sg, i, cand, nv, pen); memo[[key]] <- v } else nhit <<- nhit + 1L
     v
   }
   ord_score <- function(ord) { sc <- numeric(k); for (r in seq_len(k)) sc[ord[r]] <- node(ord[r], ord[seq_len(r - 1)])$score; sc }
@@ -73,10 +77,26 @@ learn_dag_heur <- function(X, lags, k, E = NULL, restarts = 3, seed = 1, maxpass
   old <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
   on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv), add = TRUE)
   set.seed(seed)
-  starts <- c(list(greedy()), lapply(seq_len(restarts), function(x) sample.int(k)))
-  best <- NULL
-  for (o in starts) { r <- improve(o); if (is.null(best) || r$score < best$score) best <- r }
+  best <- improve(greedy())
+  for (x in seq_len(restarts)) {
+    if (restart == "random") o <- sample.int(k)
+    else { o <- best$ord; for (j in seq_len(strength)) { a <- sample.int(k, 1); o <- append(o[-match(a, o)], a, after = sample.int(k, 1) - 1) } }   # iterated local search: perturb the incumbent by random insertions
+    r <- improve(o); if (r$score < best$score) best <- r
+  }
   parents <- vector("list", k)
   for (r in seq_len(k)) parents[[best$ord[r]]] <- node(best$ord[r], best$ord[seq_len(r - 1)])$par
-  list(parents = parents, score = best$score, order = best$ord)
+  list(parents = parents, score = best$score, order = best$ord, evals = nev, hits = nhit)
+}
+
+# Forward selection on the (extended) BIC, used when the candidate set is too large for backward elimination (q >= N - 1).
+forward_parents <- function(Sg, i, cand, nv, pen = log(nv)) {
+  P <- integer(0); cur <- nv * log(Sg[i, i]); rest <- cand
+  repeat {
+    if (length(rest) == 0 || length(P) >= nv - 2) break
+    sc <- vapply(rest, function(j) { Q <- c(P, j); r <- tryCatch(Sg[i, i] - sum(Sg[Q, i] * solve(Sg[Q, Q, drop = FALSE], Sg[Q, i])), error = function(e) NA_real_)
+      if (!is.finite(r) || r <= 0) Inf else nv * log(r) + length(Q) * pen }, 0)
+    jb <- which.min(sc); if (sc[jb] >= cur - 1e-12) break
+    P <- c(P, rest[jb]); rest <- rest[-jb]; cur <- sc[jb]
+  }
+  list(par = sort(P), score = cur)
 }

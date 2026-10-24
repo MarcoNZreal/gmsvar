@@ -22,8 +22,8 @@ symmetric logical matrix of dimension k(p+1), columns ordered X_t, X_{t-1}, ...,
 \description{
 Convenience wrapper that returns a logical k(p+1) by k(p+1) conditional independence graph of the window, by a partial-correlation
 test rule (\code{cig_select}) or a penalised screen (\code{cig_screen}). Pass the result to \code{gmsvar(X, p, cig = ...)} to
-restrict the DAG search. The accompanying simulations found that the unrestricted search was the most accurate; a CIG is useful
-to impose prior knowledge, to inspect the data, or (liberal screens only) to speed up the search when k is large.
+restrict the DAG search. In the accompanying simulations no screen improved on the unrestricted extended-BIC search (the default of \code{gmsvar}); a CIG is useful
+to impose prior knowledge, to inspect the data and to save computation.
 }
 \examples{
 set.seed(1); X <- simulate_svar(svar_example(), 600)
