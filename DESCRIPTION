@@ -23,11 +23,3 @@ RoxygenNote: 7.3.2
 Imports: stats, utils, graphics
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
-NeedsCompilation: no
-Packaged: 2026-10-24 21:08:22 UTC; root
-Author: Marco Reale [aut, cre],
-  Anna Lin [aut],
-  Granville Tunnicliffe Wilson [aut],
-  Chris Price [aut],
-  Blair Robertson [aut]
-Maintainer: Marco Reale <marco.reale@canterbury.ac.nz>
