@@ -21,7 +21,7 @@ gmsvar_boot(fit, X, B = 200)                      # block-bootstrap stability of
 * `cig_estimate()`: optional initial CIG of the window (test rule or penalised screen), to be passed as `cig =`.
 * `cig_stats()`, `cig_select()`: window partial correlations and edge-selection rules (t-test, Bonferroni, SIN-type Sidak-Holm, BH, BIC cutoff). All rules rank the pairs identically and differ only in the cutoff.
 * `cig_screen()`: adaptive graphical lasso and (adaptive) node-wise lasso screens.
-* `dag_exact()`, `dag_heuristic()`: BIC or extended-BIC search (`ebic_gamma`) over contemporaneous orderings, optionally restricted to a CIG. `gmsvar()` uses the exact search up to k = 10 current variables and the heuristic above; the heuristic is not covered by the consistency result.
+* `dag_exact()`, `dag_heuristic()`: BIC or extended-BIC search (`ebic_gamma`) over contemporaneous orderings, optionally restricted to a CIG. `gmsvar()` uses the full search over orderings (`dag_exact()`) up to k = 10 current variables and the local search above. Both choose each parent set by backward elimination, so neither is guaranteed to return the exact minimiser of the score to which the consistency results apply.
 * `gmsvar()`: pipeline; returns the lag order, the initial CIG used, the DAG (`parents`), the estimated structural VAR (`svar`: `B0`, `A`, standard errors, shock variances) and the arrows that are common to the whole equivalence class (`compelled`). `svar_estimate()`, `svar_edges()`, `svar_irf()`, `svar_dot()`, `plot()`, `gmsvar_boot()` work on it.
 * `dag_pcts()`: the tiered PC-stable comparator used in the paper (our own implementation, not tigramite).
 * `random_svar()`, `simulate_svar()`, `true_parent_sets()`, `dag_compare()`: simulation and scoring.

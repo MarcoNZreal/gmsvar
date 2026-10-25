@@ -98,3 +98,9 @@ test_that("search = 'auto' is exact up to k = 10 and heuristic above", {
   d11 <- random_svar(k = 11, p = 1, seed = 11001); set.seed(1); X11 <- simulate_svar(d11, 300)
   expect_equal(gmsvar(X11, p = 1)$search, "heuristic")
 })
+
+test_that("constant and linearly dependent columns are rejected with a clear message", {
+  set.seed(1); X <- simulate_svar(svar_example(), 300)
+  expect_error(gmsvar(cbind(X, 1), p = 2), "constant")
+  expect_error(gmsvar(cbind(X, X[, 1] + X[, 2]), p = 2), "linearly dependent")
+})

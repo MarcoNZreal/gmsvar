@@ -1,6 +1,6 @@
 #' gmsvar: graphical modelling and DAG recovery for structural VARs
 #'
-#' Extended-BIC search over contemporaneous orderings (exact for small k, heuristic otherwise) from the data, the equivalence class under the
+#' Extended-BIC search over contemporaneous orderings (over all orderings for small k, local search otherwise) from the data, the equivalence class under the
 #' time ordering, and the estimated SVAR; window partial-correlation graphs (CIGs), edge-selection rules and penalised screens are optional tools.
 #' @keywords internal
 #' @importFrom stats cor cov cov2cor pnorm pt rbinom rnorm rt runif coef setNames
@@ -22,7 +22,8 @@ svar_example <- function() model1()
 #' @param p lag order.
 #' @param seed seed.
 #' @param max_root bound on the largest companion root.
-#' @param parents expected number of contemporaneous parents per variable (before capping by the ordering).
+#' @param parents expected number of contemporaneous parents of each variable after the first in a random ordering: the number is
+#'   drawn from a Binomial(3, parents / 3) distribution and capped by the number of predecessors.
 #' @param off1 number of non-zero off-diagonal entries of the lag-1 matrix.
 #' @param off2 number of non-zero entries of each lag matrix of order 2 and higher.
 #' @return an SVAR list (see \code{svar_example}).
@@ -79,9 +80,11 @@ cig_select <- function(stats, k, lags, method = "BIC", alpha = 0.05) { E <- sele
 #' @export
 cig_screen <- function(X, lags, method = c("ANW", "AGL", "NW")) screen_graph(as.matrix(X), lags, ncol(X), match.arg(method))
 
-#' Exact BIC search for the contemporaneous DAG
+#' Full search over orderings for the contemporaneous DAG
 #'
-#' Dynamic programme over subsets of current variables; the cost doubles with each added current variable (about 1 s at k = 10 and 8 s at k = 12 on one core).
+#' Dynamic programme over all orderings of the current variables (BIC or extended BIC); the cost doubles with each added current variable (about 1 s at k = 10 and 8 s at k = 12 on one core).
+#' The search is exhaustive over orderings, but the parent set of each variable is chosen by backward elimination, which can miss the best subset, so the result
+#' need not be the exact minimiser of the score (in the accompanying simulations the two gave the same graph in most fits and similar accuracy).
 #' @param X n by k matrix.
 #' @param lags lag order.
 #' @param E optional symmetric candidate graph (CIG) restricting the parents.
@@ -93,7 +96,7 @@ dag_exact <- function(X, lags, E = NULL, ebic_gamma = 0) learn_dag(as.matrix(X),
 #' Heuristic BIC search over orderings (larger k)
 #'
 #' Local search over orderings from a greedy start and several further starts (random orders, or, with \code{restart = "perturb"}, perturbations of the incumbent). Node problems are memoised on the sorted predecessor set. It is a heuristic: it returns a local
-#' optimum of the BIC and the consistency result for the exact search does not apply to it.
+#' optimum of the score and the consistency result for the penalised-likelihood minimiser does not apply to it.
 #' @inheritParams dag_exact
 #' @param restarts number of further starts.
 #' @param restart \code{"random"} (default) or \code{"perturb"} (iterated local search from the incumbent).
@@ -140,7 +143,7 @@ cig_estimate <- function(X, p, method = "GMTS-ua", alpha = 0.05) {
 #' Two-stage pipeline: from the data to the estimated SVAR
 #'
 #' Starting from the data alone, chooses the lag order (unless \code{p} is given), searches for the contemporaneous DAG over orderings
-#' by the extended BIC (exact dynamic programme for small k, heuristic otherwise), derives the arrows that are common to the Markov equivalence
+#' by the extended BIC (dynamic programme over all orderings for small k, local search otherwise; parent sets by backward elimination), derives the arrows that are common to the Markov equivalence
 #' class under the time ordering, and estimates the resulting structural VAR by least squares equation by equation. An initial
 #' conditional independence graph (CIG) of the window is an optional restriction (\code{cig}, e.g. from \code{cig_estimate}).
 #'
@@ -160,7 +163,7 @@ cig_estimate <- function(X, p, method = "GMTS-ua", alpha = 0.05) {
 #' @param screen stage 1 of the two-stage method, a shortcut for \code{cig_estimate}: \code{"none"} (default), \code{"auto"} (the rule of version 0.3.0: none if k <= 20, otherwise \code{"ANW"}), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
 #'   (\code{"AGL"}, \code{"ANW"}, \code{"NW"}). Liberal screens are recommended; conservative ones can cost accuracy. Ignored if \code{cig} is given.
 #' @param alpha level for the test-based screens.
-#' @param search \code{"auto"} (exact if k <= 10, else heuristic; the exact search takes about 1 s at k = 10 with two lags and 8 s with six), \code{"exact"} or \code{"heuristic"}.
+#' @param search \code{"auto"} (\code{dag_exact()}, the full search over orderings, if k <= 10, else heuristic; the full search takes about 1 s at k = 10 with two lags and 8 s with six), \code{"exact"} or \code{"heuristic"}.
 #' @param restarts number of further starts of the heuristic search (0 = greedy start and local search only).
 #' @param ebic_gamma extended-BIC parameter: the penalty per parent is \code{log(N) + 2 * ebic_gamma * log(m - 1)}, with m the window dimension; 0 gives the BIC. The default 0.5 was about as accurate as the BIC for k <= 7 and much more accurate for k >= 20 in the accompanying simulations.
 #' @return an object of class \code{gmsvar}: \code{p}, \code{order} (lag-order criteria, if used), \code{cig} (the initial graph used, or \code{NULL}),
@@ -178,6 +181,8 @@ gmsvar <- function(X, p = NULL, pmax = 6, ic = "AIC", cig = NULL, screen = "none
   X <- as.matrix(X)
   if (!is.numeric(X)) stop("X must be numeric")
   if (anyNA(X)) stop("X contains missing values; remove or impute them first")
+  sdv <- apply(X, 2, stats::sd); if (any(!is.finite(sdv)) || any(sdv <= 1e-10 * max(sdv))) stop(sprintf("X has constant column(s): %s; remove them first", paste(which(!is.finite(sdv) | sdv <= 1e-10 * max(sdv)), collapse = ", ")))
+  if (qr(scale(X, scale = FALSE))$rank < ncol(X)) stop("the columns of X are linearly dependent (e.g. an aggregate and all its components); remove the redundant series first")
   X <- scale(X, scale = FALSE); k <- ncol(X); ord <- NULL
   if (identical(screen, "auto")) screen <- if (k <= 20) "none" else "ANW"   # legacy rule of version 0.3.0
   if (!is.null(cig)) {

@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{dag_exact}
 \alias{dag_exact}
-\title{Exact BIC search for the contemporaneous DAG}
+\title{Full search over orderings for the contemporaneous DAG}
 \usage{
 dag_exact(X, lags, E = NULL, ebic_gamma = 0)
 }
@@ -19,5 +19,7 @@ dag_exact(X, lags, E = NULL, ebic_gamma = 0)
 list with \code{parents} (parents of each current variable, window indices) and \code{score}.
 }
 \description{
-Dynamic programme over subsets of current variables; the cost doubles with each added current variable (about 1 s at k = 10 and 8 s at k = 12 on one core).
+Dynamic programme over all orderings of the current variables (BIC or extended BIC); the cost doubles with each added current variable (about 1 s at k = 10 and 8 s at k = 12 on one core).
+The search is exhaustive over orderings, but the parent set of each variable is chosen by backward elimination, which can miss the best subset, so the result
+need not be the exact minimiser of the score (in the accompanying simulations the two gave the same graph in most fits and similar accuracy).
 }

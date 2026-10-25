@@ -34,7 +34,7 @@ or k by k, in which case it constrains the contemporaneous pairs only and every 
 
 \item{alpha}{level for the test-based screens.}
 
-\item{search}{\code{"auto"} (exact if k <= 10, else heuristic; the exact search takes about 1 s at k = 10 with two lags and 8 s with six), \code{"exact"} or \code{"heuristic"}.}
+\item{search}{\code{"auto"} (\code{dag_exact()}, the full search over orderings, if k <= 10, else heuristic; the full search takes about 1 s at k = 10 with two lags and 8 s with six), \code{"exact"} or \code{"heuristic"}.}
 
 \item{restarts}{number of further starts of the heuristic search (0 = greedy start and local search only).}
 
@@ -47,7 +47,7 @@ an object of class \code{gmsvar}: \code{p}, \code{order} (lag-order criteria, if
 }
 \description{
 Starting from the data alone, chooses the lag order (unless \code{p} is given), searches for the contemporaneous DAG over orderings
-by the extended BIC (exact dynamic programme for small k, heuristic otherwise), derives the arrows that are common to the Markov equivalence
+by the extended BIC (dynamic programme over all orderings for small k, local search otherwise; parent sets by backward elimination), derives the arrows that are common to the Markov equivalence
 class under the time ordering, and estimates the resulting structural VAR by least squares equation by equation. An initial
 conditional independence graph (CIG) of the window is an optional restriction (\code{cig}, e.g. from \code{cig_estimate}).
 }

@@ -31,5 +31,5 @@ dag_heuristic(
 }
 \description{
 Local search over orderings from a greedy start and several further starts (random orders, or, with \code{restart = "perturb"}, perturbations of the incumbent). Node problems are memoised on the sorted predecessor set. It is a heuristic: it returns a local
-optimum of the BIC and the consistency result for the exact search does not apply to it.
+optimum of the score and the consistency result for the penalised-likelihood minimiser does not apply to it.
 }

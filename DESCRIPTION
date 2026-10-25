@@ -8,8 +8,8 @@ Authors@R: c(person("Marco", "Reale", role = c("aut", "cre"), email = "marco.rea
              person("Chris", "Price", role = "aut"),
              person("Blair", "Robertson", role = "aut"))
 Description: Starting from the data, selects the lag order of a vector autoregression by information criteria,
-    recovers a directed acyclic graph for the contemporaneous structure by an extended-BIC search over orderings (exact for
-    small systems, heuristic for larger ones), identifies the arrows common to the Markov equivalence class under the time
+    recovers a directed acyclic graph for the contemporaneous structure by an extended-BIC search over orderings (over all
+    orderings for small systems, local search for larger ones; parent sets by backward elimination), identifies the arrows common to the Markov equivalence class under the time
     ordering, and estimates the structural VAR. An optional first stage restricts the search to a sparse conditional
     independence graph of the window of current and lagged variables (partial-correlation tests or penalised screens),
     estimated or supplied by the user, to impose prior knowledge or save computation. Includes impulse responses, a bootstrap of edge stability, and tools for simulating sparse

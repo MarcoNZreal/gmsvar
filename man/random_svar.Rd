@@ -23,7 +23,8 @@ random_svar(
 
 \item{max_root}{bound on the largest companion root.}
 
-\item{parents}{expected number of contemporaneous parents per variable (before capping by the ordering).}
+\item{parents}{expected number of contemporaneous parents of each variable after the first in a random ordering: the number is
+drawn from a Binomial(3, parents / 3) distribution and capped by the number of predecessors.}
 
 \item{off1}{number of non-zero off-diagonal entries of the lag-1 matrix.}
 
