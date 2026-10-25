@@ -104,3 +104,23 @@ test_that("constant and linearly dependent columns are rejected with a clear mes
   expect_error(gmsvar(cbind(X, 1), p = 2), "constant")
   expect_error(gmsvar(cbind(X, X[, 1] + X[, 2]), p = 2), "linearly dependent")
 })
+
+test_that("the reference node routine uses the extended-BIC penalty, as the fast one does", {
+  set.seed(4); d <- random_svar(k = 5, p = 2, seed = 501); X <- simulate_svar(d, 200)
+  G <- window_matrix(X, 2); nv <- nrow(G); Sg <- cov(G) * (nv - 1) / nv; pen <- log(nv) + 2 * 0.5 * log(ncol(G) - 1)
+  for (i in 1:5) {
+    a <- gmsvar:::best_parents(Sg, i, setdiff(seq_len(ncol(G)), i), nv, pen)
+    b <- gmsvar:::fast_best_parents(Sg, i, setdiff(seq_len(ncol(G)), i), nv, pen)
+    expect_equal(a$par, b$par); expect_equal(a$score, b$score, tolerance = 1e-8)
+  }
+})
+
+test_that("svar_estimate reproduces least squares with an intercept on the window", {
+  set.seed(2); X <- simulate_svar(svar_example(), 300); fit <- gmsvar(X, p = 2)
+  G <- window_matrix(X, 2); est <- fit$svar
+  for (i in 1:3) { P <- sort(fit$parents[[i]]); if (!length(P)) next
+    co <- coef(lm(G[, i] ~ G[, P, drop = FALSE]))[-1]; se <- summary(lm(G[, i] ~ G[, P, drop = FALSE]))$coefficients[-1, 2]
+    j <- P[1]; v <- if (j <= 3) est$B0[i, j] else est$A[[(j - 1) %/% 3]][i, (j - 1) %% 3 + 1]
+    vs <- if (j <= 3) est$B0_se[i, j] else est$A_se[[(j - 1) %/% 3]][i, (j - 1) %% 3 + 1]
+    expect_equal(unname(v), unname(co[1]), tolerance = 1e-10); expect_equal(unname(vs), unname(se[1]), tolerance = 1e-10) }
+})

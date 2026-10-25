@@ -12,19 +12,19 @@
   if (is.null(sol)) return(Inf)
   Sg[i, i] - sum(Sg[i, P] * sol)
 }
-.bic <- function(Sg, i, P, nv) {
+.bic <- function(Sg, i, P, nv, pen = log(nv)) {
   r <- .rss(Sg, i, P)
   if (!is.finite(r) || r <= 0) return(Inf)
-  nv * log(r) + length(P) * log(nv)
+  nv * log(r) + length(P) * pen
 }
 
-best_parents <- function(Sg, i, cand, nv) {
+best_parents <- function(Sg, i, cand, nv, pen = log(nv)) {   # pen: penalty per parent (BIC by default, extended BIC if larger)
   P <- cand
-  cur <- .bic(Sg, i, P, nv)
+  cur <- .bic(Sg, i, P, nv, pen)
   while (length(P) > 0) {
     best <- cur; bj <- NA
     for (j in P) {
-      b <- .bic(Sg, i, setdiff(P, j), nv)
+      b <- .bic(Sg, i, setdiff(P, j), nv, pen)
       if (b < best - 1e-12) { best <- b; bj <- j }
     }
     if (is.na(bj)) break

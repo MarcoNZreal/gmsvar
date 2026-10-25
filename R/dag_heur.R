@@ -7,7 +7,7 @@ fast_best_parents <- function(Sg, i, cand, nv, pen = log(nv)) {
   if (q == 0) return(list(par = integer(0), score = nv * log(Sg[i, i])))
   if (q >= nv - 1) return(forward_parents(Sg, i, cand, nv, pen))   # more candidates than observations: the full regression is not estimable, select forwards
   Om <- tryCatch(chol2inv(chol(Sg[P, P, drop = FALSE])), error = function(e) NULL)
-  if (is.null(Om)) return(best_parents(Sg, i, cand, nv))
+  if (is.null(Om)) return(best_parents(Sg, i, cand, nv, pen))
   s <- Sg[P, i]; rss <- Sg[i, i] - sum(s * (Om %*% s))
   if (!is.finite(rss) || rss <= 0) return(list(par = sort(P), score = Inf))
   cur <- nv * log(rss) + q * lg

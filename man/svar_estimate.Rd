@@ -7,7 +7,7 @@
 svar_estimate(X, p, parents, names = NULL)
 }
 \arguments{
-\item{X}{n by k matrix (centred internally).}
+\item{X}{n by k matrix; the columns of the window are centred internally, as in the search.}
 
 \item{p}{lag order.}
 

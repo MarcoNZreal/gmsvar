@@ -1,3 +1,9 @@
+# gmsvar 0.4.1
+
+* `svar_estimate()` centres the window columns, so the reported coefficients come from the same regressions as the search (least squares with an intercept; standard errors with one degree of freedom for the mean). The change is in the fourth decimal for the application of the paper.
+* The reference node routine `best_parents()`, a fallback of the fast routine, now uses the extended-BIC penalty when one is set.
+* No change to the search: graphs, scores and timings are those of 0.4.0.
+
 # gmsvar 0.4.0
 
 * The default score of `gmsvar()` is now the extended BIC (`ebic_gamma = 0.5`, penalty per parent `log(N) + 2 * gamma * log(m - 1)`) and no screen (`screen = "none"`). In the accompanying simulations the BIC overfitted from about 15 variables, and the extended BIC was as accurate as, or more accurate than, the BIC with or without a screen at every size up to 50 variables. `ebic_gamma = 0` restores the BIC; `screen = "auto"` restores the screening rule of 0.3.0.

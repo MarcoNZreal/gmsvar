@@ -4,7 +4,7 @@
 #'
 #' Least-squares estimate of \eqn{X_t = B_0 X_t + A_1 X_{t-1} + \dots + A_p X_{t-p} + \epsilon_t}, equation by equation, where the
 #' regressors of equation i are its parents in the window (contemporaneous parents form an acyclic \eqn{B_0}).
-#' @param X n by k matrix (centred internally).
+#' @param X n by k matrix; the columns of the window are centred internally, as in the search.
 #' @param p lag order.
 #' @param parents list of parent sets in window indices (as returned by \code{dag_exact}).
 #' @param names optional series names.
@@ -13,7 +13,7 @@
 #'   \eqn{A_0 X_t = \sum A_l X_{t-l} + \epsilon_t}), \code{n}, \code{names}.
 #' @export
 svar_estimate <- function(X, p, parents, names = NULL) {
-  X <- scale(as.matrix(X), scale = FALSE); k <- ncol(X); G <- window_mat(X, p); n <- nrow(G)
+  X <- as.matrix(X); k <- ncol(X); G <- scale(window_mat(X, p), scale = FALSE); n <- nrow(G)   # window columns centred, as in the search covariance
   nm <- if (is.null(names)) paste0("X", seq_len(k)) else names
   B0 <- matrix(0, k, k, dimnames = list(nm, nm)); B0se <- B0; A <- A_se <- vector("list", p)
   for (l in seq_len(p)) A[[l]] <- A_se[[l]] <- matrix(0, k, k, dimnames = list(nm, nm))
@@ -22,7 +22,7 @@ svar_estimate <- function(X, p, parents, names = NULL) {
     P <- sort(parents[[i]]); y <- G[, i]
     if (!length(P)) { sig2[i] <- mean(y^2); next }
     Z <- G[, P, drop = FALSE]; ZtZi <- solve(crossprod(Z)); b <- ZtZi %*% crossprod(Z, y); r <- y - Z %*% b
-    sig2[i] <- mean(r^2); se <- sqrt(diag(ZtZi) * sum(r^2) / (n - length(P)))
+    sig2[i] <- mean(r^2); se <- sqrt(diag(ZtZi) * sum(r^2) / (n - length(P) - 1))   # one degree of freedom for the mean
     for (q in seq_along(P)) { j <- P[q]; col <- (j - 1) %% k + 1; lg <- (j - 1) %/% k
       if (lg == 0) { B0[i, col] <- b[q]; B0se[i, col] <- se[q] } else { A[[lg]][i, col] <- b[q]; A_se[[lg]][i, col] <- se[q] } }
   }

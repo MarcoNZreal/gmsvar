@@ -1,7 +1,7 @@
 Package: gmsvar
 Type: Package
 Title: Graphical Identification of Structural Vector Autoregressions
-Version: 0.4.0
+Version: 0.4.1
 Authors@R: c(person("Marco", "Reale", role = c("aut", "cre"), email = "marco.reale@canterbury.ac.nz"),
              person("Anna", "Lin", role = "aut"),
              person("Granville", "Tunnicliffe Wilson", role = "aut"),
