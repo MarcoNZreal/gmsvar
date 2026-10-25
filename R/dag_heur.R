@@ -29,7 +29,7 @@ fast_best_parents <- function(Sg, i, cand, nv, pen = log(nv)) {
 learn_dag_heur <- function(X, lags, k, E = NULL, restarts = 3, seed = 1, maxpass = 50, restart = c("random", "perturb"), strength = max(3L, round(k / 6)), ebic_gamma = 0) {
   restart <- match.arg(restart)
   G <- window_mat(X, lags); nv <- nrow(G); m <- ncol(G)
-  pen <- log(nv) + 2 * ebic_gamma * log(m - 1)   # extended BIC (Chen and Chen 2008) with the binomial term approximated per parent, so the penalty does not depend on the ordering
+  pen <- log(nv) + 2 * ebic_gamma * log(max(m - 1, 1))   # extended BIC (Chen and Chen 2008) with the binomial term approximated per parent, so the penalty does not depend on the ordering
   Sg <- cov(G) * (nv - 1) / nv
   if (is.null(E)) E <- matrix(TRUE, m, m)
   E <- E | t(E)
@@ -75,7 +75,7 @@ learn_dag_heur <- function(X, lags, k, E = NULL, restarts = 3, seed = 1, maxpass
   }
   # use a private RNG stream: save the caller's .Random.seed and restore it on exit (set.seed here used to reset the caller's stream)
   old <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
-  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv), add = TRUE)
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv) else if (exists(".Random.seed", envir = .GlobalEnv)) rm(".Random.seed", envir = .GlobalEnv), add = TRUE)
   set.seed(seed)
   best <- improve(greedy())
   for (x in seq_len(restarts)) {

@@ -13,7 +13,7 @@ dag_exact(X, lags, E = NULL, ebic_gamma = 0)
 
 \item{E}{optional symmetric candidate graph (CIG) restricting the parents.}
 
-\item{ebic_gamma}{extended-BIC parameter (0 = BIC); penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}.}
+\item{ebic_gamma}{extended-BIC parameter; penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}. The default 0 gives the BIC here, whereas \code{gmsvar()} uses 0.5.}
 }
 \value{
 list with \code{parents} (parents of each current variable, window indices) and \code{score}.

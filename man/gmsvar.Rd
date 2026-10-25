@@ -27,7 +27,8 @@ gmsvar(
 \item{ic}{\code{"AIC"} (default), \code{"BIC"} or \code{"HQ"}. In the accompanying simulations BIC and HQ underfitted when higher-order lags were weak, which hurt the graph; AIC overfitted slightly at a small cost.}
 
 \item{cig}{optional initial CIG: a logical (or 0/1) matrix of dimension k(p+1) by k(p+1) over the window (X_t, X_{t-1}, ..., X_{t-p}),
-or k by k, in which case it constrains the contemporaneous pairs only and every lagged pair is allowed. Only pairs involving a current variable matter.}
+or k by k, in which case it constrains the contemporaneous pairs only and every lagged pair is allowed. Only pairs involving a current variable matter.
+A window CIG fixes the lag order (p = dimension / k - 1) when \code{p} is not given; with a k by k CIG the lag order is chosen by \code{ic} as usual.}
 
 \item{screen}{stage 1 of the two-stage method, a shortcut for \code{cig_estimate}: \code{"none"} (default), \code{"auto"} (the rule of version 0.3.0: none if k <= 20, otherwise \code{"ANW"}), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
 (\code{"AGL"}, \code{"ANW"}, \code{"NW"}). Liberal screens are recommended; conservative ones can cost accuracy. Ignored if \code{cig} is given.}

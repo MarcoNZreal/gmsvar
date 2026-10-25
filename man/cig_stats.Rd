@@ -17,3 +17,7 @@ list with \code{R} (partial correlations), \code{t}, \code{pt} (t-test p-values)
 \description{
 Partial correlations and tests in the window
 }
+\details{
+The t-test uses \code{N - (m - 1)} degrees of freedom, the convention of \code{cigts} (Reale and Tunnicliffe Wilson, 2001);
+  with an estimated mean the exact value is \code{N - m}. The difference is negligible unless N - m is small.
+}

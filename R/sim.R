@@ -11,7 +11,7 @@ model1 <- function() {
 
 random_svar_impl <- function(k = 15, p = 2, seed = 15015, parents = 1.3, off1 = round(1.5 * k), off2 = round(k * 0.93), max_root = 0.9) {
   old <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
-  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv))
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv) else if (exists(".Random.seed", envir = .GlobalEnv)) rm(".Random.seed", envir = .GlobalEnv))
   set.seed(seed); ord <- sample(k)
   A0 <- diag(k)
   for (r in 2:k) { i <- ord[r]; np <- min(r - 1, rbinom(1, 3, parents / 3)); if (np > 0) { j <- ord[sample(r - 1, np)]; A0[i, j] <- -sample(c(-1, 1), np, TRUE) * runif(np, .3, .7) } }

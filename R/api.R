@@ -52,6 +52,8 @@ window_matrix <- function(X, lags) window_mat(as.matrix(X), lags)
 #' @param X n by k matrix.
 #' @param lags lag order.
 #' @return list with \code{R} (partial correlations), \code{t}, \code{pt} (t-test p-values), \code{pz} (Fisher-z p-values), \code{nv}, \code{m}.
+#' @details The t-test uses \code{N - (m - 1)} degrees of freedom, the convention of \code{cigts} (Reale and Tunnicliffe Wilson, 2001);
+#'   with an estimated mean the exact value is \code{N - m}. The difference is negligible unless N - m is small.
 #' @export
 cig_stats <- function(X, lags) {
   X <- as.matrix(X); m <- ncol(X) * (lags + 1); N <- nrow(X) - lags
@@ -88,7 +90,7 @@ cig_screen <- function(X, lags, method = c("ANW", "AGL", "NW")) screen_graph(as.
 #' @param X n by k matrix.
 #' @param lags lag order.
 #' @param E optional symmetric candidate graph (CIG) restricting the parents.
-#' @param ebic_gamma extended-BIC parameter (0 = BIC); penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}.
+#' @param ebic_gamma extended-BIC parameter; penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}. The default 0 gives the BIC here, whereas \code{gmsvar()} uses 0.5.
 #' @return list with \code{parents} (parents of each current variable, window indices) and \code{score}.
 #' @export
 dag_exact <- function(X, lags, E = NULL, ebic_gamma = 0) learn_dag(as.matrix(X), lags, ncol(X), E, ebic_gamma = ebic_gamma)
@@ -160,6 +162,7 @@ cig_estimate <- function(X, p, method = "GMTS-ua", alpha = 0.05) {
 #' @param ic \code{"AIC"} (default), \code{"BIC"} or \code{"HQ"}. In the accompanying simulations BIC and HQ underfitted when higher-order lags were weak, which hurt the graph; AIC overfitted slightly at a small cost.
 #' @param cig optional initial CIG: a logical (or 0/1) matrix of dimension k(p+1) by k(p+1) over the window (X_t, X_{t-1}, ..., X_{t-p}),
 #'   or k by k, in which case it constrains the contemporaneous pairs only and every lagged pair is allowed. Only pairs involving a current variable matter.
+#'   A window CIG fixes the lag order (p = dimension / k - 1) when \code{p} is not given; with a k by k CIG the lag order is chosen by \code{ic} as usual.
 #' @param screen stage 1 of the two-stage method, a shortcut for \code{cig_estimate}: \code{"none"} (default), \code{"auto"} (the rule of version 0.3.0: none if k <= 20, otherwise \code{"ANW"}), a rule of \code{cig_select} (e.g. \code{"BIC"}, \code{"GMTS-ua"}, \code{"SIN"}) or a penalised screen
 #'   (\code{"AGL"}, \code{"ANW"}, \code{"NW"}). Liberal screens are recommended; conservative ones can cost accuracy. Ignored if \code{cig} is given.
 #' @param alpha level for the test-based screens.
@@ -183,13 +186,16 @@ gmsvar <- function(X, p = NULL, pmax = 6, ic = "AIC", cig = NULL, screen = "none
   if (anyNA(X)) stop("X contains missing values; remove or impute them first")
   sdv <- apply(X, 2, stats::sd); if (any(!is.finite(sdv)) || any(sdv <= 1e-10 * max(sdv))) stop(sprintf("X has constant column(s): %s; remove them first", paste(which(!is.finite(sdv) | sdv <= 1e-10 * max(sdv)), collapse = ", ")))
   if (qr(scale(X, scale = FALSE))$rank < ncol(X)) stop("the columns of X are linearly dependent (e.g. an aggregate and all its components); remove the redundant series first")
+  if (!is.null(p) && (length(p) != 1 || !is.finite(p) || p < 1 || p != round(p))) stop("p must be a positive integer")
   X <- scale(X, scale = FALSE); k <- ncol(X); ord <- NULL
   if (identical(screen, "auto")) screen <- if (k <= 20) "none" else "ANW"   # legacy rule of version 0.3.0
   if (!is.null(cig)) {
     cig <- as.matrix(cig); d <- nrow(cig)
     if (nrow(cig) != ncol(cig)) stop("cig must be a square matrix")
+    if (anyNA(cig)) stop("cig contains missing values")
     if (d %% k != 0) stop("dimension of cig must be a multiple of the number of series")
-    if (is.null(p)) p <- d %/% k - 1
+    if (is.null(p) && d > k) p <- d %/% k - 1   # a window CIG fixes the lag order; a k by k CIG does not
+    if (is.null(p)) { ord <- var_order(X, pmax); p <- ord[[ic]]; if (p < 1) stop("selected order is 0; supply p") }
     if (d != k && d != k * (p + 1)) stop("cig must be k by k or k(p+1) by k(p+1)")
   } else if (is.null(p)) {
     ord <- var_order(X, pmax); p <- ord[[ic]]; if (p < 1) stop("selected order is 0; supply p")

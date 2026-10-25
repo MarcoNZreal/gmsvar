@@ -37,7 +37,7 @@ best_parents <- function(Sg, i, cand, nv, pen = log(nv)) {   # pen: penalty per 
 # Returns list(parents = list over current nodes 1..k, score).
 learn_dag <- function(X, lags, k, E = NULL, ebic_gamma = 0) {
   G <- window_mat(X, lags); nv <- nrow(G); m <- ncol(G)
-  pen <- log(nv) + 2 * ebic_gamma * log(m - 1)   # BIC if ebic_gamma = 0, otherwise extended BIC with per-parent penalty
+  pen <- log(nv) + 2 * ebic_gamma * log(max(m - 1, 1))   # BIC if ebic_gamma = 0, otherwise extended BIC with per-parent penalty
   Sg <- cov(G) * (nv - 1) / nv                    # ML covariance (ddof = 0)
   if (is.null(E)) E <- matrix(TRUE, m, m)
   E <- E | t(E)
@@ -151,7 +151,8 @@ dag_metrics <- function(par_est, par_true, k, m) {
   Ae <- De | t(De); At <- Dt | t(Dt)
   iu <- upper.tri(matrix(0, k, k))
   ec <- Ae[1:k, 1:k][iu]; tc <- At[1:k, 1:k][iu]
-  el <- as.vector(Ae[1:k, (k + 1):m]); tl <- as.vector(At[1:k, (k + 1):m])
+  lg <- if (m > k) (k + 1):m else integer(0)
+  el <- as.vector(Ae[1:k, lg]); tl <- as.vector(At[1:k, lg])
   out <- c(cc_TP = sum(ec & tc), cc_FP = sum(ec & !tc), cc_FN = sum(!ec & tc), cc_TN = sum(!ec & !tc),
            cl_TP = sum(el & tl), cl_FP = sum(el & !tl), cl_FN = sum(!el & tl), cl_TN = sum(!el & !tl))
   out["equiv"] <- as.integer(equivalent(par_est, par_true, k, m))

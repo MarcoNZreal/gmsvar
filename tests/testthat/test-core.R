@@ -124,3 +124,21 @@ test_that("svar_estimate reproduces least squares with an intercept on the windo
     vs <- if (j <= 3) est$B0_se[i, j] else est$A_se[[(j - 1) %/% 3]][i, (j - 1) %% 3 + 1]
     expect_equal(unname(v), unname(co[1]), tolerance = 1e-10); expect_equal(unname(vs), unname(se[1]), tolerance = 1e-10) }
 })
+
+test_that("a k by k cig without p keeps the lag order chosen by the criterion", {
+  set.seed(1); X <- simulate_svar(svar_example(), 600)
+  f <- gmsvar(X, cig = matrix(TRUE, 3, 3)); g <- gmsvar(X)
+  expect_equal(f$p, g$p); expect_true(f$p >= 1)
+  expect_true(sum(unlist(f$parents) > 3) > 0)
+})
+
+test_that("p is validated and the random stream is left untouched", {
+  set.seed(1); X <- simulate_svar(svar_example(), 300)
+  expect_error(gmsvar(X, p = 1.5), "positive integer"); expect_error(gmsvar(X, p = 0), "positive integer")
+  expect_error(gmsvar(X, p = 2, cig = matrix(c(TRUE, NA, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE), 3)), "missing")
+  fit <- gmsvar(X, p = 2)
+  if (exists(".Random.seed", envir = globalenv())) rm(".Random.seed", envir = globalenv())
+  invisible(gmsvar_boot(fit, X, B = 3)); expect_false(exists(".Random.seed", envir = globalenv()))
+  expect_error(gmsvar_boot(fit, X, B = 3, block = 1000), "block")
+  pc <- lapply(fit$parents, function(P) P[P <= 3]); expect_silent(dag_compare(pc, pc, 3, 0)[1])
+})

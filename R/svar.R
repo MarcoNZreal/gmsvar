@@ -148,7 +148,9 @@ svar_dot <- function(fit, lagged = FALSE) {
 #' @export
 gmsvar_boot <- function(fit, X, B = 200, block = 8, seed = 1) {
   X <- as.matrix(X); n <- nrow(X); k <- fit$k; p <- fit$p
-  if (exists(".Random.seed", envir = globalenv())) { old <- get(".Random.seed", envir = globalenv()); on.exit(assign(".Random.seed", old, envir = globalenv())) }
+  if (block < 1 || block > n) stop(sprintf("block must be between 1 and the number of observations (%d)", n))
+  old <- if (exists(".Random.seed", envir = globalenv())) get(".Random.seed", envir = globalenv()) else NULL
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = globalenv()) else if (exists(".Random.seed", envir = globalenv())) rm(".Random.seed", envir = globalenv()))
   set.seed(seed); dirm <- matrix(0, k, k); adjm <- matrix(0, k, k); adjsum <- matrix(0, k, k); lagm <- replicate(p, matrix(0, k, k), simplify = FALSE)
   for (b in seq_len(B)) {
     st <- sample.int(n - block + 1, ceiling(n / block), replace = TRUE); Xb <- X[unlist(lapply(st, function(s) s:(s + block - 1)))[seq_len(n)], , drop = FALSE]

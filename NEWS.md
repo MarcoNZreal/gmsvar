@@ -1,3 +1,12 @@
+# gmsvar 0.4.2
+
+* `gmsvar()` with a k by k `cig` and no `p` now chooses the lag order by `ic`; previously it fitted a model without lags.
+* `p` is checked to be a positive integer; a `cig` with missing values is rejected; `gmsvar_boot()` checks `block`.
+* Functions that use a private random stream no longer leave a `.Random.seed` behind when none existed.
+* `dag_compare()` works for p = 0, and the extended-BIC penalty is defined when the window has one variable.
+* `cig_stats()` documents its degrees-of-freedom convention; `dag_exact()` and `dag_heuristic()` note that their default is the BIC.
+* No change to the search or the estimates: results are those of 0.4.1.
+
 # gmsvar 0.4.1
 
 * `svar_estimate()` centres the window columns, so the reported coefficients come from the same regressions as the search (least squares with an intercept; standard errors with one degree of freedom for the mean). The change is in the fourth decimal for the application of the paper.

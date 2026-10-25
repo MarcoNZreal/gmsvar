@@ -27,7 +27,7 @@ dag_heuristic(
 
 \item{restart}{\code{"random"} (default) or \code{"perturb"} (iterated local search from the incumbent).}
 
-\item{ebic_gamma}{extended-BIC parameter (0 = BIC); penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}.}
+\item{ebic_gamma}{extended-BIC parameter; penalty per parent \code{log(N) + 2 * ebic_gamma * log(m - 1)}. The default 0 gives the BIC here, whereas \code{gmsvar()} uses 0.5.}
 }
 \description{
 Local search over orderings from a greedy start and several further starts (random orders, or, with \code{restart = "perturb"}, perturbations of the incumbent). Node problems are memoised on the sorted predecessor set. It is a heuristic: it returns a local
